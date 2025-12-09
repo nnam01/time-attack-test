@@ -1,31 +1,60 @@
 package com.nnam01.study.controller;
 
+import com.nnam01.study.dto.EventResultDto;
+import com.nnam01.study.dto.EventTimeRequestDto;
+import com.nnam01.study.dto.ParticipationRequest;
+import com.nnam01.study.service.TimeAttackService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/time-attack")
+@RequiredArgsConstructor
 public class TimeAttackController {
+
+    private final TimeAttackService timeAttackService;
+
+    @PostMapping("/event/time")
+    public ResponseEntity<String> setEventTime(@RequestBody EventTimeRequestDto request) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH:mm");
+        LocalDateTime ldt = LocalDateTime.parse(request.getEventTime(), formatter);
+        ZonedDateTime zdt = ZonedDateTime.of(ldt, ZoneId.of("Asia/Seoul"));
+        timeAttackService.setEventTime(zdt);
+        return ResponseEntity.ok("이벤트 시간이 설정되었습니다.");
+    }
 
     /**
      * 선착순 요청 처리 API (Redis 사용)
      */
     @PostMapping("/participate/redis")
-    public ResponseEntity<String> participateWithRedis() {
-        // TODO: Redis에 사용자 요청을 저장하는 Service 로직 호출
-        return ResponseEntity.accepted().body("[Redis] 참여 요청이 성공적으로 접수되었습니다.");
+    public ResponseEntity<String> participateWithRedis(@RequestBody ParticipationRequest request) {
+        try {
+            String result = timeAttackService.participateWithRedis(request.getPhoneNumber(), request.getName());
+            return ResponseEntity.accepted().body(result);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 
     /**
      * 선착순 요청 처리 API (H2 DB 사용)
      */
     @PostMapping("/participate/h2")
-    public ResponseEntity<String> participateWithH2() {
-        // TODO: H2 DB에 사용자 요청을 저장하는 Service 로직 호출
-        return ResponseEntity.ok().body("[H2] 참여 요청이 성공적으로 처리되었습니다.");
+    public ResponseEntity<String> participateWithH2(@RequestBody ParticipationRequest request) {
+        try {
+            String result = timeAttackService.participateWithH2(request.getPhoneNumber(), request.getName());
+            return ResponseEntity.accepted().body(result);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 
     /**
@@ -33,26 +62,15 @@ public class TimeAttackController {
      */
     @GetMapping("/event/status")
     public ResponseEntity<String> getEventStatus() {
-        // TODO: 현재 이벤트 상태(시작 전, 진행 중, 종료)를 반환하는 로직 구현
-        return ResponseEntity.ok("");
+        return ResponseEntity.ok(timeAttackService.getEventStatus());
     }
 
     /**
      * 선착순 결과 조회 API
      */
     @GetMapping("/event/results")
-    public ResponseEntity<String> getEventResults() {
-        // TODO: 이벤트 결과를 조회하는 로직 구현 (e.g., 상위 5명)
-        return ResponseEntity.ok("");
-    }
-
-    /**
-     * 자신의 순위/결과 확인 API
-     */
-    @GetMapping("/me/results")
-    public ResponseEntity<String> getMyResults() {
-        // TODO: 현재 로그인된 사용자의 순위 또는 결과를 조회하는 로직 구현
-        return ResponseEntity.ok("");
+    public ResponseEntity<List<EventResultDto>> getEventResults() {
+        return ResponseEntity.ok(timeAttackService.getEventResults());
     }
 
     /**
@@ -60,6 +78,6 @@ public class TimeAttackController {
      */
     @GetMapping("/server-time")
     public ResponseEntity<String> getServerTime() {
-        return ResponseEntity.ok(java.time.LocalDateTime.now().toString());
+        return ResponseEntity.ok(ZonedDateTime.now(ZoneId.of("Asia/Seoul")).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
     }
 }

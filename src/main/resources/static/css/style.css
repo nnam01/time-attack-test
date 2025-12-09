@@ -1,0 +1,266 @@
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+/* CSS Variables */
+:root {
+    --primary-color: #007bff;
+    --primary-color-dark: #0056b3;
+    --secondary-color: #6c757d;
+    --light-color: #f8f9fa;
+    --dark-color: #343a40;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --white-color: #ffffff;
+    --border-color: #dee2e6;
+    --font-family: 'Roboto', sans-serif;
+    --box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    --border-radius: 8px;
+}
+
+/* General Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--light-color);
+    color: var(--dark-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header & Navigation */
+.header {
+    background-color: var(--white-color);
+    padding: 1rem 0;
+    box-shadow: var(--box-shadow);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.nav-brand {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--secondary-color);
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.nav-links a:hover, .nav-links a.active {
+    color: var(--primary-color);
+}
+
+/* Main Content & Cards */
+.main-content {
+    margin-top: 2rem;
+}
+
+.card {
+    background-color: var(--white-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.card-title {
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+    color: var(--dark-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+    text-align: center;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--white-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-color-dark);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+}
+
+
+/* Table Styles */
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.results-table th, .results-table td {
+    padding: 12px 15px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+}
+
+.results-table thead th {
+    background-color: var(--light-color);
+    font-weight: 700;
+}
+
+.results-table tbody tr:nth-of-type(even) {
+    background-color: #fdfdfd;
+}
+
+.results-table tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Status & Time */
+.status-bar {
+    text-align: right;
+    padding: 0.5rem 1rem;
+    background: var(--white-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.status-bar span {
+    font-weight: bold;
+}
+
+#eventStatus.status-in-progress { color: var(--success-color); }
+#eventStatus.status-finished { color: var(--danger-color); }
+#eventStatus.status-before-start { color: var(--secondary-color); }
+#eventStatus.status-not-set { color: var(--warning-color); }
+
+
+/* Utility */
+.text-center {
+    text-align: center;
+}
+.mt-2 {
+    margin-top: 2rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .nav-links {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* Responsive Table from Admin page */
+@media (max-width: 600px) {
+    .results-table, .results-table thead, .results-table tbody, .results-table th, .results-table td, .results-table tr {
+        display: block;
+    }
+    .results-table thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+    .results-table tr {
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        margin-bottom: 10px;
+    }
+    .results-table td {
+        border: none;
+        border-bottom: 1px solid #eee;
+        position: relative;
+        padding-left: 50%;
+        text-align: right;
+    }
+    .results-table td:before {
+        position: absolute;
+        top: 50%;
+        left: 15px;
+        transform: translateY(-50%);
+        width: 45%;
+        padding-right: 10px;
+        white-space: nowrap;
+        font-weight: bold;
+        text-align: left;
+    }
+    .results-table td:nth-of-type(1):before { content: "Rank"; }
+    .results-table td:nth-of-type(2):before { content: "Phone Number"; }
+    .results-table td:nth-of-type(3):before { content: "Participation Time"; }
+}

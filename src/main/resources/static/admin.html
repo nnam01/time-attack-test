@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 - 타임어택 이벤트</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="navbar">
+            <a href="/" class="nav-brand">타임어택 이벤트</a>
+            <ul class="nav-links">
+                <li><a href="/">홈</a></li>
+                <li><a href="/participate.html">이벤트 참여</a></li>
+                <li><a href="/admin.html" class="active">관리자</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="status-bar">
+            <strong>서버 시간:</strong> <span id="serverTime"></span>
+        </div>
+
+        <section class="card">
+            <h1 class="card-title">이벤트 시간 설정</h1>
+            <form id="eventTimeForm">
+                <div class="form-group">
+                    <label for="eventTime">이벤트 시작 시간:</label>
+                    <input type="datetime-local" id="eventTime" name="eventTime" class="form-control">
+                </div>
+                <button type="button" onclick="setEventTime()" class="btn btn-primary">시간 설정</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h1 class="card-title">이벤트 결과</h1>
+            <button type="button" onclick="getEventResults()" class="btn btn-primary">결과 불러오기</button>
+            <div id="eventResults" class="mt-2"></div>
+        </section>
+    </main>
+
+    <script>
+        async function getEventResults() {
+            const resultsDiv = document.getElementById('eventResults');
+            resultsDiv.innerHTML = '결과를 불러오는 중...';
+            try {
+                const response = await fetch('/api/v1/time-attack/event/results');
+                const results = await response.json();
+                resultsDiv.innerHTML = ''; // Clear previous results
+
+                if (results.length === 0) {
+                    resultsDiv.innerText = '아직 참여자가 없습니다.';
+                    return;
+                }
+
+                const table = document.createElement('table');
+                table.classList.add('results-table');
+                const thead = document.createElement('thead');
+                const tbody = document.createElement('tbody');
+
+                const headerRow = document.createElement('tr');
+                ['순위', '전화번호', '참여 시간'].forEach(headerText => {
+                    const th = document.createElement('th');
+                    th.innerText = headerText;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                results.forEach(result => {
+                    const row = document.createElement('tr');
+                    
+                    const rankCell = document.createElement('td');
+                    rankCell.innerText = result.rank;
+                    row.appendChild(rankCell);
+
+                    const phoneCell = document.createElement('td');
+                    phoneCell.innerText = result.phoneNumber;
+                    row.appendChild(phoneCell);
+
+                    const timeCell = document.createElement('td');
+                    const date = new Date(result.timestamp * 1000);
+                    timeCell.innerText = date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+                    row.appendChild(timeCell);
+
+                    tbody.appendChild(row);
+                });
+                table.appendChild(tbody);
+                resultsDiv.appendChild(table);
+            } catch (error) {
+                console.error("Error fetching event results:", error);
+                resultsDiv.innerText = "결과를 불러오는데 실패했습니다.";
+            }
+        }
+
+        async function setEventTime() {
+            let eventTimeInput = document.getElementById('eventTime').value;
+            if (!eventTimeInput) {
+                alert("이벤트 시간을 선택해주세요.");
+                return;
+            }
+            // The API expects 'yyyy-MM-dd-HH:mm' but datetime-local gives 'yyyy-MM-ddTHH:mm'
+            const eventTime = eventTimeInput.replace('T', '-'); 
+            
+            try {
+                const response = await fetch('/api/v1/time-attack/event/time', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ eventTime: eventTime }),
+                });
+                const result = await response.text();
+                alert(result);
+            } catch (error) {
+                console.error("Error setting event time:", error);
+                alert("시간 설정에 실패했습니다.");
+            }
+        }
+
+        let serverTimeInterval;
+        async function getServerTime() {
+            try {
+                const response = await fetch('/api/v1/time-attack/server-time');
+                if (!response.ok) return;
+                const result = await response.text();
+                let serverTime = new Date(result);
+                document.getElementById('serverTime').innerText = serverTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+                if (!serverTimeInterval) {
+                    serverTimeInterval = setInterval(() => {
+                        serverTime.setSeconds(serverTime.getSeconds() + 1);
+                        document.getElementById('serverTime').innerText = serverTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error("Error fetching server time:", error);
+                document.getElementById('serverTime').innerText = "시간 정보 로딩 실패";
+            }
+        }
+
+        // Initial call
+        getServerTime();
+    </script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이벤트 참여 - 타임어택 이벤트</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="navbar">
+            <a href="/" class="nav-brand">타임어택 이벤트</a>
+            <ul class="nav-links">
+                <li><a href="/">홈</a></li>
+                <li><a href="/participate.html" class="active">이벤트 참여</a></li>
+                <li><a href="/admin.html">관리자</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="status-bar">
+            <strong>서버 시간:</strong> <span id="serverTime"></span>
+            <strong style="margin-left: 10px;">이벤트 상태:</strong> <span id="eventStatus"></span>
+        </div>
+
+        <section class="main-content">
+            <div class="card">
+                <h1 class="card-title">이벤트 참여</h1>
+                <form id="participateForm">
+                    <div class="form-group">
+                        <label for="phoneNumber">전화번호:</label>
+                        <input type="text" id="phoneNumber" name="phoneNumber" class="form-control" placeholder="'-' 없이 입력하세요">
+                    </div>
+                    <div class="form-group">
+                        <label for="name">이름:</label>
+                        <input type="text" id="name" name="name" class="form-control">
+                    </div>
+                    <div class="button-group">
+                        <button type="button" onclick="participateH2()" class="btn btn-primary">참여하기 (H2)</button>
+                        <button type="button" onclick="participateRedis()" class="btn btn-primary" style="background-color: var(--warning-color);">참여하기 (Redis)</button>
+                    </div>
+                </form>
+                <p class="mt-2"><strong>결과:</strong> <span id="participateResult"></span></p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        async function participateRedis() {
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const name = document.getElementById('name').value;
+            if (!phoneNumber || !name) {
+                alert("전화번호와 이름을 모두 입력해주세요.");
+                return;
+            }
+            const response = await fetch('/api/v1/time-attack/participate/redis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phoneNumber, name }),
+            });
+            const result = await response.text();
+            document.getElementById('participateResult').innerText = result;
+        }
+
+        async function participateH2() {
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const name = document.getElementById('name').value;
+            if (!phoneNumber || !name) {
+                alert("전화번호와 이름을 모두 입력해주세요.");
+                return;
+            }
+            const response = await fetch('/api/v1/time-attack/participate/h2', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phoneNumber, name }),
+            });
+            const result = await response.text();
+            document.getElementById('participateResult').innerText = result;
+        }
+
+        let serverTimeInterval;
+        async function getServerTime() {
+            try {
+                const response = await fetch('/api/v1/time-attack/server-time');
+                if (!response.ok) return;
+                const result = await response.text();
+                let serverTime = new Date(result);
+                document.getElementById('serverTime').innerText = serverTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+                if (!serverTimeInterval) {
+                    serverTimeInterval = setInterval(() => {
+                        serverTime.setSeconds(serverTime.getSeconds() + 1);
+                        document.getElementById('serverTime').innerText = serverTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error("Error fetching server time:", error);
+                document.getElementById('serverTime').innerText = "시간 정보 로딩 실패";
+            }
+        }
+
+        async function getEventStatus() {
+            try {
+                const response = await fetch('/api/v1/time-attack/event/status');
+                if (!response.ok) return;
+                const status = await response.text();
+                const statusEl = document.getElementById('eventStatus');
+                statusEl.innerText = status;
+                
+                statusEl.className = ''; // Reset classes
+                switch (status) {
+                    case '이벤트 진행 중':
+                        statusEl.classList.add('status-in-progress');
+                        break;
+                    case '이벤트 종료':
+                        statusEl.classList.add('status-finished');
+                        break;
+                    case '이벤트 시작 전':
+                        statusEl.classList.add('status-before-start');
+                        break;
+                    case '이벤트 시간 미설정':
+                        statusEl.classList.add('status-not-set');
+                        break;
+                }
+            } catch(error) {
+                console.error("Error fetching event status:", error);
+                document.getElementById('eventStatus').innerText = "상태 로딩 실패";
+            }
+        }
+
+        // Initial calls
+        getServerTime();
+        getEventStatus();
+        setInterval(getEventStatus, 5000);
+    </script>
+</body>
+</html>
