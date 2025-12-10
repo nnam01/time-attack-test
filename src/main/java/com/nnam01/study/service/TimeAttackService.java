@@ -6,8 +6,9 @@ import com.nnam01.study.dto.EventResultDto;
 import com.nnam01.study.repository.EventRepository;
 import com.nnam01.study.repository.ParticipationRepository;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,22 +18,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class TimeAttackService {
 
     private ZonedDateTime eventStartTime;
     private static final String PARTICIPATION_KEY = "time-attack:participants";
+    private static final String USER_INFO_KEY = "time-attack:user-info"; // [추가] 이름 저장용 Hash Key
     private static final int MAX_PARTICIPANTS = 500;
 
     private final StringRedisTemplate redisTemplate;
     private final ParticipationRepository participationRepository;
     private final EventRepository eventRepository;
 
-    @Autowired
-    public TimeAttackService(StringRedisTemplate redisTemplate, ParticipationRepository participationRepository, EventRepository eventRepository) {
-        this.redisTemplate = redisTemplate;
-        this.participationRepository = participationRepository;
-        this.eventRepository = eventRepository;
-    }
+    private final String ADD_PARTICIPANT_SCRIPT =
+            "if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[1]) then return -1 end " +    // 마감 시 -1 (숫자)
+                    "if redis.call('ZSCORE', KEYS[1], ARGV[2]) then return -2 end " +       // 중복 시 -2 (숫자)
+                    "redis.call('ZADD', KEYS[1], ARGV[3], ARGV[2]) " +
+                    "redis.call('HSET', KEYS[2], ARGV[2], ARGV[4]) " +
+                    "return redis.call('ZRANK', KEYS[1], ARGV[2]) + 1";                     // 등수(숫자) 리턴
 
     @PostConstruct
     public void init() {
@@ -45,44 +48,32 @@ public class TimeAttackService {
         this.eventStartTime = eventStartTime;
     }
 
-    @Transactional
     public String participateWithRedis(String phoneNumber, String name) {
         validateEventTime();
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
+        long timestamp = System.currentTimeMillis();
 
-        // Redis Sorted Set을 사용하여 선착순 참여를 처리
-        Long currentParticipants = redisTemplate.opsForZSet().size(PARTICIPATION_KEY);
+        // 리턴 타입을 Long으로 설정
+        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>(ADD_PARTICIPANT_SCRIPT, Long.class);
 
-        if (currentParticipants != null && currentParticipants >= MAX_PARTICIPANTS) {
+        Long result = redisTemplate.execute(redisScript,
+                List.of(PARTICIPATION_KEY, USER_INFO_KEY),
+                String.valueOf(MAX_PARTICIPANTS),
+                phoneNumber,
+                String.valueOf(timestamp),
+                name
+        );
+
+        if (result == null) {
+            return "참여 실패: 시스템 오류";
+        }
+
+        if (result == -1) {
             return "참여 실패: 선착순 마감";
-        }
-
-        // 사용자 ID (여기서는 전화번호를 사용)가 이미 참여했는지 확인
-        Double score = redisTemplate.opsForZSet().score(PARTICIPATION_KEY, phoneNumber);
-        if (score != null) {
+        } else if (result == -2) {
             return "참여 실패: 이미 참여했습니다.";
-        }
-
-        // 참여자 추가 (score는 현재 시간의 epoch second)
-        long timestamp = now.toEpochSecond();
-        Boolean added = redisTemplate.opsForZSet().add(PARTICIPATION_KEY, phoneNumber, timestamp);
-
-        if (Boolean.TRUE.equals(added)) {
-            // Redis에 성공적으로 추가되었을 때만 DB에 저장
-            Participation participation = new Participation(phoneNumber, name, now.toLocalDateTime());
-            participationRepository.save(participation);
-
-            // 다시 한번 참여자 수 확인하여 MAX_PARTICIPANTS를 초과하는지 검증
-            Long finalParticipantsCount = redisTemplate.opsForZSet().zCard(PARTICIPATION_KEY);
-            if (finalParticipantsCount != null && finalParticipantsCount <= MAX_PARTICIPANTS) {
-                return "참여 완료: " + name + "님 (" + finalParticipantsCount + "번째)";
-            } else {
-                // 경합 상황에서 초과된 경우, 추가된 사용자를 Redis와 DB에서 제거 (롤백)
-                redisTemplate.opsForZSet().remove(PARTICIPATION_KEY, phoneNumber);
-                throw new IllegalStateException("참여 실패: 선착순 마감 (동시성 오류 발생)");
-            }
         } else {
-            return "참여 실패: 알 수 없는 오류";
+            // result는 1부터 시작하는 등수
+            return "참여 완료: " + name + "님 (" + result + "번째)";
         }
     }
 
@@ -137,7 +128,6 @@ public class TimeAttackService {
         if (eventStartTime == null) {
             return "이벤트 시간 미설정";
         }
-
         ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
         ZonedDateTime eventEndTime = eventStartTime.plusMinutes(30);
 

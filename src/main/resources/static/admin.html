@@ -39,6 +39,13 @@
             <button type="button" onclick="getEventResults()" class="btn btn-primary">결과 불러오기</button>
             <div id="eventResults" class="mt-2"></div>
         </section>
+
+        <section class="card">
+            <h1 class="card-title">Redis 참여 데이터 DB 동기화</h1>
+            <p>Redis에 저장된 모든 참여 데이터를 DB로 이전합니다.</p>
+            <button type="button" id="transferBtn" class="btn btn-primary">Redis > DB 동기화</button>
+            <p id="transferResult" class="mt-2"></p>
+        </section>
     </main>
 
     <script>
@@ -76,7 +83,7 @@
                     rankCell.innerText = result.rank;
                     row.appendChild(rankCell);
 
-                    const phoneCell = document.createElement('td');
+                    const phoneCell = document = document.createElement('td');
                     phoneCell.innerText = result.phoneNumber;
                     row.appendChild(phoneCell);
 
@@ -139,7 +146,30 @@
             }
         }
 
-        // Initial call
+        document.getElementById('transferBtn').addEventListener('click', async function() {
+            if (!confirm('정말로 Redis의 모든 참여 데이터를 DB로 이전하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+                return;
+            }
+
+            this.disabled = true; // 버튼 비활성화
+            const transferResultElement = document.getElementById('transferResult');
+            transferResultElement.innerText = '데이터 이전 중...';
+
+            try {
+                const response = await fetch('/api/v1/time-attack/event/sync', {
+                    method: 'POST'
+                });
+                const data = await response.text();
+                transferResultElement.innerText = data;
+            } catch (error) {
+                console.error('Error:', error);
+                transferResultElement.innerText = '데이터 이전 중 오류가 발생했습니다: ' + error;
+            } finally {
+                this.disabled = false;
+            }
+        });
+
+
         getServerTime();
     </script>
 </body>

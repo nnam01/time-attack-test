@@ -3,6 +3,7 @@ package com.nnam01.study.controller;
 import com.nnam01.study.dto.EventResultDto;
 import com.nnam01.study.dto.EventTimeRequestDto;
 import com.nnam01.study.dto.ParticipationRequest;
+import com.nnam01.study.service.EventSyncService;
 import com.nnam01.study.service.TimeAttackService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import java.util.List;
 public class TimeAttackController {
 
     private final TimeAttackService timeAttackService;
+    private final EventSyncService eventSyncService;
 
     @PostMapping("/event/time")
     public ResponseEntity<String> setEventTime(@RequestBody EventTimeRequestDto request) {
@@ -79,5 +81,14 @@ public class TimeAttackController {
     @GetMapping("/server-time")
     public ResponseEntity<String> getServerTime() {
         return ResponseEntity.ok(ZonedDateTime.now(ZoneId.of("Asia/Seoul")).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+    }
+
+    /**
+     * 관리자용 DB 수동 동기화 API
+     */
+    @PostMapping("/event/sync")
+    public ResponseEntity<String> manualSync() {
+        int count = eventSyncService.syncRedisToDatabase();
+        return ResponseEntity.ok("DB 동기화 완료! 총 " + count + "건이 이동되었습니다.");
     }
 }
