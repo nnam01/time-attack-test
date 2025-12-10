@@ -1,8 +1,11 @@
 package com.nnam01.study.service;
 
+import com.nnam01.study.domain.Event;
 import com.nnam01.study.domain.Participation;
 import com.nnam01.study.dto.EventResultDto;
+import com.nnam01.study.repository.EventRepository;
 import com.nnam01.study.repository.ParticipationRepository;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -22,11 +25,20 @@ public class TimeAttackService {
 
     private final StringRedisTemplate redisTemplate;
     private final ParticipationRepository participationRepository;
+    private final EventRepository eventRepository;
 
     @Autowired
-    public TimeAttackService(StringRedisTemplate redisTemplate, ParticipationRepository participationRepository) {
+    public TimeAttackService(StringRedisTemplate redisTemplate, ParticipationRepository participationRepository, EventRepository eventRepository) {
         this.redisTemplate = redisTemplate;
         this.participationRepository = participationRepository;
+        this.eventRepository = eventRepository;
+    }
+
+    @PostConstruct
+    public void init() {
+        if (!eventRepository.existsById(1L)) {
+            eventRepository.save(new Event(1L, MAX_PARTICIPANTS));
+        }
     }
 
     public void setEventTime(ZonedDateTime eventStartTime) {
@@ -94,30 +106,18 @@ public class TimeAttackService {
         validateEventTime();
         ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
 
-        // H2 DB를 사용하여 선착순 참여를 처리
-        long currentParticipants = participationRepository.count();
-
-        if (currentParticipants >= MAX_PARTICIPANTS) {
+        Event event = eventRepository.findByIdForUpdate(1L)
+                .orElseThrow(() -> new IllegalStateException("이벤트가 존재하지 않습니다."));
+        if (!event.increase()) {
             return "참여 실패: 선착순 마감";
         }
-
-        // 사용자 ID (여기서는 전화번호를 사용)가 이미 참여했는지 확인
         if (participationRepository.findByPhoneNumber(phoneNumber).isPresent()) {
-            return "참여 실패: 이미 참여했습니다.";
+            throw new IllegalStateException("참여 실패: 이미 참여했습니다.");
         }
-
-        // 참여자 추가
         Participation participation = new Participation(phoneNumber, name, now.toLocalDateTime());
         participationRepository.save(participation);
 
-        // 다시 한번 참여자 수 확인하여 MAX_PARTICIPANTS를 초과하는지 검증
-        long finalParticipantsCount = participationRepository.count();
-        if (finalParticipantsCount <= MAX_PARTICIPANTS) {
-            return "참여 완료: " + name + "님 (" + finalParticipantsCount + "번째)";
-        } else {
-            // 경합 상황에서 초과된 경우, 추가된 사용자를 DB에서 제거 (롤백)
-            throw new IllegalStateException("참여 실패: 선착순 마감 (동시성 오류 발생)");
-        }
+        return "참여 완료: " + name + "님 (" + event.getCurrentCount() + "번째)";
     }
 
     private void validateEventTime() {
